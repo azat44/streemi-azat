@@ -109,6 +109,12 @@ class User
         return $this->password;
     }
 
+    public function getRoles(): array
+{
+    // Return the roles or default to "ROLE_USER"
+    return $this->roles ?? ['ROLE_USER'];
+}
+
     public function setPassword(string $password): static
     {
         $this->password = $password;

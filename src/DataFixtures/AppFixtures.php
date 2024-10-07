@@ -10,16 +10,19 @@ use App\Entity\Media;
 use App\Entity\Movie;
 use App\Entity\Playlist;
 use App\Entity\PlaylistMedia;
+use App\Entity\PlaylistSubscription;
 use App\Entity\Season;
 use App\Entity\Serie;
 use App\Entity\Subscription;
+use App\Entity\SubscriptionHistory;
 use App\Entity\User;
 use App\Entity\WatchHistory;
+use App\Enum\MediaTypeEnum;
+use App\Enum\StatusCommentEnum;
 use App\Enum\UserAccountStatusEnum;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use Doctrine\Common\Collections\ArrayCollection;
 
 class AppFixtures extends Fixture
 {
@@ -32,118 +35,179 @@ class AppFixtures extends Fixture
 
     public function load(ObjectManager $manager): void
     {
-        // Create sample languages
-        $english = new Language();
-        $english->setName('English');
+        // Categories
+        $categoryEntities = [];
+        $categories = [
+            ['Action', 'action'],
+            ['Aventure', 'aventure'],
+            ['Comédie', 'comédie'],
+            ['Drame', 'drame'],
+            ['Science-fiction', 'sci-Fi']
+        ];
 
-        $french = new Language();
-        $french->setName('French');
-
-        $manager->persist($english);
-        $manager->persist($french);
-
-        // Create a few categories
-        $categories = [];
-        for ($i = 1; $i <= 3; $i++) {
+        foreach ($categories as $categoryData) {
             $category = new Category();
-            $category->setName('Category ' . $i);
+            $category->setName($categoryData[0]);
+            $category->setLabel($categoryData[1]);
             $manager->persist($category);
-            $categories[] = $category;
+            $categoryEntities[] = $category;
         }
 
-        // Create a few sample users
-        $users = [];
-        for ($i = 1; $i <= 5; $i++) {
-            $user = new User();
-            $user->setUsername('user' . $i);
-            $user->setEmail('user' . $i . '@example.com');
+        // Languages
+        $languageEntities = [];
+        $languages = [
+            ['French', 'FR'],
+            ['English', 'EN'],
+            ['Spanish', 'ES'],
+            ['Russian', 'RU'],
+            ['Chinese', 'CN']
+        ];
 
-            // Hash the password (assuming password hashing is enabled)
-            $hashedPassword = $this->passwordHasher->hashPassword($user, 'password' . $i);
-            $user->setPassword($hashedPassword);
-
-            // Set a default account status (change this as needed)
-            $user->setAccountStatus(UserAccountStatusEnum::ACTIVE);
-
-            $manager->persist($user);
-            $users[] = $user;
-
-            // Create watch history for each user
-            $watchHistory = new WatchHistory();
-            $watchHistory->setWatcher($user);
-            // Add relevant details to WatchHistory entity
-            $manager->persist($watchHistory);
+        foreach ($languages as $languageData) {
+            $language = new Language();
+            $language->setName($languageData[0]);
+            $language->setCode($languageData[1]);
+            $manager->persist($language);
+            $languageEntities[] = $language;
         }
 
-        // Create a few movies and associate them with categories and languages
-        for ($i = 1; $i <= 5; $i++) {
+        // Movies
+        $movieTab = [];
+        for ($i = 0; $i < 5; $i++) {
             $movie = new Movie();
-            $movie->setTitle('Movie ' . $i);
-            $movie->setLanguage($i % 2 == 0 ? $english : $french);
-            $movie->setCategory($categories[$i % 3]);
-
+            $movie->setTitle("Film " . $i);
+            $movie->setShortDescription("Description du film " . $i);
+            $movie->setLongDescription("Longue description du film " . $i);
+            $movie->setCoverImage("film" . $i . ".png");
+            $movie->setRealeaseDateAt(new \DateTime());
+            $movie->setMediaType(MediaTypeEnum::MOVIE);
+            $movie->addCategoryMedium($categoryEntities[$i % count($categoryEntities)]);
+            $movie->addMediaLanguage($languageEntities[$i % count($languageEntities)]);
             $manager->persist($movie);
+            $movieTab[] = $movie;
         }
 
-        // Create a series with seasons and episodes
-        for ($i = 1; $i <= 2; $i++) {
+        // Series, Seasons, and Episodes
+        for ($i = 0; $i < 5; $i++) {
             $serie = new Serie();
-            $serie->setTitle('Serie ' . $i);
-            $serie->setLanguage($i % 2 == 0 ? $english : $french);
+            $serie->setTitle("Serie " . $i);
+            $serie->setShortDescription("Description de la Serie " . $i);
+            $serie->setLongDescription("Longue description de la Serie " . $i);
+            $serie->setCoverImage("Serie" . $i . ".png");
+            $serie->setRealeaseDateAt(new \DateTime());
+            $serie->setMediaType(MediaTypeEnum::SERIE);
+            $serie->addCategoryMedium($categoryEntities[$i % count($categoryEntities)]);
+            $serie->addMediaLanguage($languageEntities[$i % count($languageEntities)]);
             $manager->persist($serie);
 
-            // Add seasons to series
-            for ($j = 1; $j <= 2; $j++) {
+            for ($s = 0; $s < 3; $s++) {
                 $season = new Season();
-                $season->setTitle('Season ' . $j . ' of ' . $serie->getTitle());
+                $season->setSeasonNumber($s);
                 $season->setSerie($serie);
                 $manager->persist($season);
 
-                // Add episodes to each season
-                for ($k = 1; $k <= 3; $k++) {
+                for ($e = 0; $e < 10; $e++) {
                     $episode = new Episode();
-                    $episode->setTitle('Episode ' . $k . ' of ' . $season->getTitle());
+                    $episode->setTitle("Episode " . $e);
+                    $episode->setDuration(new \DateTimeImmutable('00:00:00'));
+                    $episode->setReleaseDateAt(new \DateTimeImmutable());
                     $episode->setSeason($season);
                     $manager->persist($episode);
                 }
             }
         }
 
-        // Create playlists for users
-        foreach ($users as $user) {
-            for ($j = 1; $j <= 2; $j++) {
-                $playlist = new Playlist();
-                $playlist->setName('Playlist ' . $j . ' for ' . $user->getUsername());
-                $playlist->setCreator($user);
-                $manager->persist($playlist);
+        // Subscriptions
+        $subscriptionsEntities = [];
+        $subscriptions = [
+            ['Simple subscription', 5, 1],
+            ['Premium subscription', 10, 2],
+            ['INSANE PREMIUM', 25, 3]
+        ];
 
-                // Add media to playlist
-                $playlistMedia = new PlaylistMedia();
-                // Assume you have some logic to get media to add
-                // $playlistMedia->setMedia($someMedia);
-                $playlistMedia->setPlaylist($playlist);
-                $manager->persist($playlistMedia);
-            }
+        foreach ($subscriptions as $subscriptionData) {
+            $subscription = new Subscription();
+            $subscription->setName($subscriptionData[0]);
+            $subscription->setPrice($subscriptionData[1]);
+            $subscription->setDurationInMonths($subscriptionData[2]);
+            $manager->persist($subscription);
+            $subscriptionsEntities[] = $subscription;
         }
 
-        // Create comments for some media
-        foreach ($users as $user) {
+        // Users and Subscriptions
+        $userTab = [];
+        for ($i = 0; $i < 5; $i++) {
+            $user = new User();
+            $user->setUsername("User" . $i);
+            $user->setEmail("user" . $i . "@example.com");
+
+            $hashedPassword = $this->passwordHasher->hashPassword($user, "password" . $i);
+            $user->setPassword($hashedPassword);
+
+            $user->addCurrentSubscription($subscriptionsEntities[rand(0, 2)]);
+            $user->setAccountStatus(UserAccountStatusEnum::ACTIVE);
+            $manager->persist($user);
+            $userTab[] = $user;
+
+            $subHistory = new SubscriptionHistory();
+            $subHistory->setSubscriber($user);
+            $subHistory->setSubscription($subscriptionsEntities[rand(0, 2)]);
+            $subHistory->setStartDateAt(new \DateTimeImmutable());
+            $subHistory->setEndDateAt(new \DateTimeImmutable('+1 month'));
+            $manager->persist($subHistory);
+        }
+
+        // Comments
+        foreach ($userTab as $key => $user) {
             $comment = new Comment();
             $comment->setContributor($user);
-            $comment->setContent('This is a comment by ' . $user->getUsername());
-            // Assume some logic to associate comment with a media
+            $comment->setMedia($movieTab[rand(0, count($movieTab) - 1)]);
+            $comment->setContent("Commentaire du user " . $key);
+            $comment->setStatus(StatusCommentEnum::POSTED);
             $manager->persist($comment);
         }
 
-        // Create subscriptions for users
-        foreach ($users as $user) {
-            $subscription = new Subscription();
-            $subscription->setSubscriber($user);
-            // Assume some logic to set subscription details
-            $manager->persist($subscription);
+        // Watch History
+        foreach ($userTab as $user) {
+            $watchHistory = new WatchHistory();
+            $watchHistory->setWatcher($user);
+            $watchHistory->setMedia($movieTab[rand(0, count($movieTab) - 1)]);
+            $watchHistory->setLastWatchedAt(new \DateTime());
+            $watchHistory->setNumberOfViews(rand(1, 50));
+            $manager->persist($watchHistory);
         }
 
-        // Persist all entities to the database
+        // Playlists
+        $playlistTab = [];
+        foreach ($userTab as $user) {
+            $playlist = new Playlist();
+            $playlist->setCreator($user);
+            $playlist->setName("Playlist of " . $user->getUsername());
+            $playlist->setCreatedAt(new \DateTimeImmutable());
+            $playlist->setUpdatedAt(new \DateTime());
+            $manager->persist($playlist);
+            $playlistTab[] = $playlist;
+        }
+
+        // Playlist Subscriptions
+        foreach ($userTab as $user) {
+            $playlistSub = new PlaylistSubscription();
+            $playlistSub->setCreator($userTab[rand(0, count($userTab) - 1)]);
+            $playlistSub->setSubscriber($user);
+            $playlistSub->setPlaylist($playlistTab[rand(0, count($playlistTab) - 1)]);
+            $playlistSub->setSubscribedAt(new \DateTime());
+            $manager->persist($playlistSub);
+        }
+
+        // Playlist Media
+        foreach ($playlistTab as $playlist) {
+            $playlistMedia = new PlaylistMedia();
+            $playlistMedia->setMedia($movieTab[rand(0, count($movieTab) - 1)]);
+            $playlistMedia->setPlaylist($playlist);
+            $playlistMedia->setAddedAt(new \DateTime());
+            $manager->persist($playlistMedia);
+        }
+
         $manager->flush();
     }
 }

@@ -37,7 +37,7 @@ class Comment
     #[ORM\Column(type: Types::TEXT)]
     private ?string $content = null;
 
-    #[ORM\Column(enumType: StatusCommentEnum::class)]
+    #[ORM\Column(type: 'string', enumType: StatusCommentEnum::class)]
     private ?StatusCommentEnum $status = null;
 
     public function __construct()
