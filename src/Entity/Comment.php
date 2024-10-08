@@ -2,7 +2,7 @@
 
 namespace App\Entity;
 
-use App\Enum\StatusCommentEnum;
+use App\Enum\CommentStatusEnum;
 use App\Repository\CommentRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -17,32 +17,35 @@ class Comment
     #[ORM\Column]
     private ?int $id = null;
 
+    #[ORM\Column(type: Types::TEXT)]
+    private ?string $content = null;
+
+    #[ORM\Column(enumType: CommentStatusEnum::class)]
+    private ?CommentStatusEnum $status = null;
+
+    #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'childComments')]
+    private ?self $parentComment = null;
+
+    /**
+     * @var Collection<int, self>
+     */
+    #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'parentComment')]
+    private Collection $childComments;
+
     #[ORM\ManyToOne(inversedBy: 'comments')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?User $contributor = null;
+    private ?User $publisher = null;
 
     #[ORM\ManyToOne(inversedBy: 'comments')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Media $media = null;
 
-    #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'comments')]
-    private ?self $parrentComment = null;
-
-    /**
-     * @var Collection<int, self>
-     */
-    #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'parrentComment')]
-    private Collection $comments;
-
-    #[ORM\Column(type: Types::TEXT)]
-    private ?string $content = null;
-
-    #[ORM\Column(type: 'string', enumType: StatusCommentEnum::class)]
-    private ?StatusCommentEnum $status = null;
+    #[ORM\Column]
+    private ?\DateTimeImmutable $createdAt = null;
 
     public function __construct()
     {
-        $this->comments = new ArrayCollection();
+        $this->childComments = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -50,14 +53,80 @@ class Comment
         return $this->id;
     }
 
-    public function getContributor(): ?User 
+    public function getContent(): ?string
     {
-        return $this->contributor;
+        return $this->content;
     }
 
-    public function setContributor(?User $contributor): static
+    public function setContent(string $content): static
     {
-        $this->contributor = $contributor;
+        $this->content = $content;
+
+        return $this;
+    }
+
+    public function getStatus(): ?CommentStatusEnum
+    {
+        return $this->status;
+    }
+
+    public function setStatus(CommentStatusEnum $status): static
+    {
+        $this->status = $status;
+
+        return $this;
+    }
+
+    public function getParentComment(): ?self
+    {
+        return $this->parentComment;
+    }
+
+    public function setParentComment(?self $parentComment): static
+    {
+        $this->parentComment = $parentComment;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, self>
+     */
+    public function getChildComments(): Collection
+    {
+        return $this->childComments;
+    }
+
+    public function addChildComment(self $childComment): static
+    {
+        if (!$this->childComments->contains($childComment)) {
+            $this->childComments->add($childComment);
+            $childComment->setParentComment($this);
+        }
+
+        return $this;
+    }
+
+    public function removeChildComment(self $childComment): static
+    {
+        if ($this->childComments->removeElement($childComment)) {
+            // set the owning side to null (unless already changed)
+            if ($childComment->getParentComment() === $this) {
+                $childComment->setParentComment(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getPublisher(): ?User
+    {
+        return $this->publisher;
+    }
+
+    public function setPublisher(?User $publisher): static
+    {
+        $this->publisher = $publisher;
 
         return $this;
     }
@@ -74,68 +143,14 @@ class Comment
         return $this;
     }
 
-    public function getParrentComment(): ?self
+    public function getCreatedAt(): ?\DateTimeImmutable
     {
-        return $this->parrentComment;
+        return $this->createdAt;
     }
 
-    public function setParrentComment(?self $parrentComment): static
+    public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
-        $this->parrentComment = $parrentComment;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, self>
-     */
-    public function getComments(): Collection
-    {
-        return $this->comments;
-    }
-
-    public function addComment(self $comment): static
-    {
-        if (!$this->comments->contains($comment)) {
-            $this->comments->add($comment);
-            $comment->setParrentComment($this);
-        }
-
-        return $this;
-    }
-
-    public function removeComment(self $comment): static
-    {
-        if ($this->comments->removeElement($comment)) {
-            // set the owning side to null (unless already changed)
-            if ($comment->getParrentComment() === $this) {
-                $comment->setParrentComment(null);
-            }
-        }
-
-        return $this;
-    }
-
-    public function getContent(): ?string
-    {
-        return $this->content;
-    }
-
-    public function setContent(string $content): static
-    {
-        $this->content = $content;
-
-        return $this;
-    }
-
-    public function getStatus(): ?StatusCommentEnum
-    {
-        return $this->status;
-    }
-
-    public function setStatus(StatusCommentEnum $status): static
-    {
-        $this->status = $status;
+        $this->createdAt = $createdAt;
 
         return $this;
     }

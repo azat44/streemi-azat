@@ -26,7 +26,7 @@ class MovieController extends AbstractController
     #[Route('/movies/{id}', name: 'movie_show')]
     public function showMovie(Movie $movie): Response
     {
-        return $this->render('movie/show.html.twig', [
+        return $this->render('detail.html.twig', [
             'movie' => $movie,
         ]);
     }
@@ -37,7 +37,7 @@ class MovieController extends AbstractController
     {
         $series = $em->getRepository(Serie::class)->findAll();
 
-        return $this->render('serie/index.html.twig', [
+        return $this->render('detail_serie.html.twig', [
             'series' => $series,
         ]);
     }
@@ -46,7 +46,7 @@ class MovieController extends AbstractController
     #[Route('/series/{id}', name: 'serie_show')]
     public function showSerie(Serie $serie): Response
     {
-        return $this->render('serie/show.html.twig', [
+        return $this->render('serie/detail.html.twig', [
             'serie' => $serie,
         ]);
     }

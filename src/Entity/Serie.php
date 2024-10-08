@@ -1,26 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use App\Repository\SerieRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\ORM\Mapping\Entity;
 
-#[ORM\Entity(repositoryClass: SerieRepository::class)]
+#[Entity(repositoryClass: SerieRepository::class)]
 class Serie extends Media
 {
     /**
      * @var Collection<int, Season>
      */
-    #[ORM\OneToMany(targetEntity: Season::class, mappedBy: 'serie', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Season::class, mappedBy: 'serie')]
     private Collection $seasons;
 
     public function __construct()
     {
+        parent::__construct();
         $this->seasons = new ArrayCollection();
     }
-
 
     /**
      * @return Collection<int, Season>
@@ -50,5 +53,22 @@ class Serie extends Media
         }
 
         return $this;
+    }
+
+    public function getDuration(): int
+    {
+        $duration = 0;
+        foreach ($this->seasons as $season) {
+            foreach ($season->getEpisodes() as $episode) {
+                $duration += $episode->getDuration();
+            }
+        }
+
+        return $duration;
+    }
+
+    public function getType(): string
+    {
+        return 'serie';
     }
 }
